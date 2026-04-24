@@ -1,6 +1,5 @@
 const isValidEdge = (str) => {
-  if (!str || typeof str !== "string") return false;
-  str = str.trim();
+  if (typeof str !== "string") return false;
   if (!/^[A-Z]->[A-Z]$/.test(str)) return false;
   const [p, c] = str.split("->");
   if (p === c) return false;
@@ -13,20 +12,27 @@ const processEdges = (data) => {
   const seenEdges = new Set();
   const edges = [];
 
+  if (!Array.isArray(data)) {
+    return {
+      hierarchies: [],
+      invalid_entries: [],
+      duplicate_edges: [],
+      summary: { total_trees: 0, total_cycles: 0, largest_tree_root: "" }
+    };
+  }
+
   for (let raw of data) {
-    const str = raw.trim();
-    if (!isValidEdge(str)) {
+    if (!isValidEdge(raw)) {
       invalid_entries.push(raw);
       continue;
     }
-    if (seenEdges.has(str)) {
-      if (!duplicate_edges.includes(str)) {
-        duplicate_edges.push(str);
-      }
+    
+    if (seenEdges.has(raw)) {
+      duplicate_edges.push(raw);
       continue;
     }
-    seenEdges.add(str);
-    edges.push(str);
+    seenEdges.add(raw);
+    edges.push(raw);
   }
 
   const children = {};
@@ -71,8 +77,11 @@ const processEdges = (data) => {
     return 1 + Math.max(...children[node].map(getDepth));
   };
 
-  for (let node of nodes) {
+  const sortedNodes = [...nodes].sort();
+
+  for (let node of sortedNodes) {
     if (visited.has(node)) continue;
+    
     let stack = [node];
     let component = new Set();
     while (stack.length) {
@@ -83,10 +92,12 @@ const processEdges = (data) => {
       for (let c of children[curr] || []) stack.push(c);
       if (parent[curr]) stack.push(parent[curr]);
     }
-    let root = [...component].find((n) => !parent[n]);
+
+    let root = [...component].sort().find((n) => !parent[n]);
     if (!root) {
       root = [...component].sort()[0];
     }
+
     const hasCycle = dfsCycle(root, new Set(), new Set());
     if (hasCycle) {
       hierarchies.push({ root, tree: {}, has_cycle: true });
@@ -108,6 +119,7 @@ const processEdges = (data) => {
     } else {
       total_trees++;
       if (
+        largest_tree_root === "" ||
         h.depth > maxDepth ||
         (h.depth === maxDepth && h.root < largest_tree_root)
       ) {

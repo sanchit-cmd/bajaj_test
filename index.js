@@ -1,10 +1,12 @@
 const express = require("express");
 const path = require("path");
+const cors = require("cors");
 const bfhlRoutes = require("./routes/bfhl.routes");
 const app = express();
 const dotenv = require("dotenv");
 dotenv.config();
 
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
