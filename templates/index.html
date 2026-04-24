@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SRM Full Stack Engineering Challenge</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      textarea {
+        width: 100%;
+        height: 150px;
+        display: block;
+        margin-bottom: 10px;
+      }
+      .results {
+        margin-top: 20px;
+        border-top: 1px solid #000;
+        padding-top: 10px;
+      }
+      pre {
+        background: #eee;
+        padding: 10px;
+        overflow-x: auto;
+      }
+      .error {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SRM Full Stack Engineering Challenge</h1>
+    <form id="graphForm">
+      <label>Edge Data (A->B, one per line):</label>
+      <textarea id="edgeData" placeholder="A->B"></textarea>
+      <button type="submit">Submit</button>
+      <button
+        type="button"
+        onclick="
+          document.getElementById('edgeData').value = '';
+          document.getElementById('results').innerHTML = '';
+        "
+      >
+        Clear
+      </button>
+    </form>
+
+    <div id="results" class="results"></div>
+
+    <script>
+      document
+        .getElementById("graphForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const resultsDiv = document.getElementById("results");
+          const edges = document
+            .getElementById("edgeData")
+            .value.split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0);
+
+          if (edges.length === 0) {
+            alert("No data entered");
+            return;
+          }
+
+          resultsDiv.innerHTML = "Processing...";
+
+          try {
+            const response = await fetch("/bfhl", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ data: edges }),
+            });
+
+            if (!response.ok) throw new Error("Server error");
+
+            const data = await response.json();
+
+            let html = "<h3>Summary</h3>";
+            html += `<p>Total Trees: ${data.summary.total_trees}</p>`;
+            html += `<p>Total Cycles: ${data.summary.total_cycles}</p>`;
+            html += `<p>Largest Tree Root: ${data.summary.largest_tree_root || "N/A"}</p>`;
+
+            html += "<h3>Hierarchies</h3>";
+            data.hierarchies.forEach((h) => {
+              html += `<div><strong>Root: ${h.root}</strong> ${h.has_cycle ? "(Cycle Detected)" : `(Depth: ${h.depth})`}</div>`;
+              if (!h.has_cycle) {
+                html += `<pre>${formatTree(h.tree)}</pre>`;
+              }
+            });
+
+            if (data.invalid_entries.length > 0) {
+              html += `<p class="error">Invalid entries: ${data.invalid_entries.join(", ")}</p>`;
+            }
+            if (data.duplicate_edges.length > 0) {
+              html += `<p>Duplicate edges: ${data.duplicate_edges.join(", ")}</p>`;
+            }
+
+            resultsDiv.innerHTML = html;
+          } catch (err) {
+            resultsDiv.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+          }
+        });
+
+      function formatTree(obj, indent = "") {
+        let res = "";
+        for (const key in obj) {
+          res += indent + "└─ " + key + "\n";
+          res += formatTree(obj[key], indent + "   ");
+        }
+        return res;
+      }
+    </script>
+  </body>
+</html>
